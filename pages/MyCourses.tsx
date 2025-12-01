@@ -71,54 +71,66 @@ export const MyCourses: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {enrolledCourses.map((course) => (
-                    <div key={course.courseId} className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200 hover:shadow-lg transition-all">
-                        <div className="relative">
+                {enrolledCourses.map((course, index) => (
+                    <div
+                        key={course.courseId}
+                        className="group bg-white rounded-xl overflow-hidden shadow-sm border-2 border-slate-200 hover:border-blue-500 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] animate-slide-in-up"
+                        style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                        <div className="relative overflow-hidden">
                             <img
                                 src={course.courseImage}
                                 alt={course.courseName}
-                                className="w-full h-48 object-cover"
+                                className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80';
                                 }}
                             />
-                            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold text-slate-800">
-                                {course.progress}% Complete
+                            {/* Completion Badge */}
+                            <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-bold shadow-lg">
+                                <span className={course.progress === 100 ? "text-green-600" : "text-blue-600"}>
+                                    {course.progress === 100 ? '✓ Completed' : `${course.progress}% Complete`}
+                                </span>
                             </div>
+                            {/* Gradient Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         </div>
 
-                        <div className="p-4">
-                            <h3 className="font-bold text-slate-900 mb-3">{course.courseName}</h3>
+                        <div className="p-6">
+                            <h3 className="font-bold text-slate-900 mb-4 text-lg">{course.courseName}</h3>
 
-                            {/* Progress Bar */}
+                            {/* Progress Bar with Animation */}
                             <div className="mb-4">
-                                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                                <div className="flex justify-between text-xs font-semibold text-slate-600 mb-2">
                                     <span>Progress</span>
                                     <span>{course.progress}%</span>
                                 </div>
-                                <div className="w-full bg-slate-200 rounded-full h-2">
+                                <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
                                     <div
-                                        className="bg-brand-600 h-2 rounded-full transition-all"
-                                        style={{ width: `${course.progress}%` }}
+                                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-2.5 rounded-full transition-all duration-1000 ease-out"
+                                        style={{
+                                            width: `${course.progress}%`,
+                                            animation: 'progressFill 1s ease-out'
+                                        }}
                                     />
                                 </div>
                             </div>
 
                             {/* Last Accessed */}
                             {course.lastAccessed && (
-                                <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+                                <div className="flex items-center gap-2 text-xs text-slate-500 mb-4 font-medium">
                                     <Clock size={14} />
                                     <span>Last accessed {new Date(course.lastAccessed).toLocaleDateString()}</span>
                                 </div>
                             )}
 
-                            {/* Resume Button */}
+                            {/* Resume Button with Glow */}
                             <Link
                                 to={`/course/${course.courseId}`}
-                                className="w-full bg-brand-600 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 transition-colors flex items-center justify-center gap-2"
+                                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-bold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-blue-500/50 hover:shadow-xl group/button"
                             >
-                                <Play size={18} />
-                                {course.progress === 0 ? 'Start Course' : 'Continue Learning'}
+                                <Play size={18} className="transition-transform group-hover/button:scale-110" />
+                                {course.progress === 0 ? 'Start Course' : course.progress === 100 ? 'Review Course' : 'Continue Learning'}
                             </Link>
                         </div>
                     </div>

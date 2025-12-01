@@ -45,7 +45,7 @@ const ReviewsSection: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {reviews.map((review, index) => (
-                        <div key={index} className="animate-fade-in" style={{ animationDelay: `${index * 150}ms` }}>
+                        <div key={index} className="animate-slide-in-up" style={{ animationDelay: `${index * 150}ms` }}>
                             <Testimonial {...review} className="h-full" />
                         </div>
                     ))}

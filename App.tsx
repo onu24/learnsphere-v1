@@ -12,6 +12,7 @@ import ReviewsSection from './components/ReviewsSection';
 import { WishlistProvider, useWishlist } from './contexts/WishlistContext';
 import { Wishlist } from './pages/Wishlist';
 import { MyCourses } from './pages/MyCourses';
+import { AdminDashboard } from './pages/AdminDashboard';
 import { ShoppingCart, User as UserIcon, LogOut, Menu, X, Shield, BookOpen, Trash2, ArrowLeft, CheckCircle, Clock, Plus, Edit2, Save, XCircle, AlertTriangle, Play, Mail, Check, RefreshCw, Search, Upload, FileText, Download, Heart } from 'lucide-react';
 
 // --- Contexts ---
@@ -205,7 +206,7 @@ const Navbar: React.FC = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-white border-b border-slate-100 px-4 py-4 space-y-4 shadow-lg animate-fade-in">
+        <div className="md:hidden bg-white border-b border-slate-100 px-4 py-4 space-y-4 shadow-lg animate-slide-down">
           {/* Mobile Search */}
           <div className="relative mb-4">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -493,7 +494,7 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pt-16">
       <Hero />
       <div id="courses" className="max-w-7xl mx-auto px-4 py-20">
         <div className="flex flex-col items-center mb-16 text-center">
@@ -1477,9 +1478,12 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 // --- Main Layout ---
 
 const Layout: React.FC = () => {
+  const location = useLocation();
+  const isDashboard = location.pathname.startsWith('/admin');
+
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar />
+      {!isDashboard && <Navbar />}
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -1488,14 +1492,14 @@ const Layout: React.FC = () => {
           <Route path="/login" element={<AuthForms type="login" />} />
           <Route path="/register" element={<AuthForms type="register" />} />
           <Route path="/payment" element={<Payment />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={<AdminDashboard />} />
 
           {/* NEW ROUTES */}
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/my-courses" element={<MyCourses />} />
         </Routes>
       </main>
-      <Footer />
+      {!isDashboard && <Footer />}
     </div>
   );
 };
