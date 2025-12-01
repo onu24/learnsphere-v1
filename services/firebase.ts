@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy, deleteDoc, setDoc, getDoc, writeBatch } from "firebase/firestore";
-import { User, UserRole, Transaction, OrderStatus, Course } from "../types";
+import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy, deleteDoc, setDoc, getDoc, writeBatch, where } from "firebase/firestore";
+import { User, UserRole, Transaction, OrderStatus, Course, Review, GlobalFeedback, EnrolledCourse } from "../types";
 import { COURSES as INITIAL_COURSES } from "../constants";
 
 // --- CONFIGURATION ---
@@ -24,6 +24,8 @@ const db = getFirestore(app);
 const TRANSACTIONS_COLLECTION = 'transactions';
 const COURSES_COLLECTION = 'courses';
 const USERS_COLLECTION = 'users';
+const REVIEWS_COLLECTION = 'reviews';
+const FEEDBACK_COLLECTION = 'feedback';
 
 // --- USER SERVICES ---
 
@@ -212,4 +214,166 @@ export const seedCourses = async (): Promise<void> => {
     batch.set(docRef, course);
   });
   await batch.commit();
+};
+
+// --- REVIEW SERVICES ---
+
+export const addReview = async (reviewData: Omit<Review, '_id' | 'timestamp'>): Promise<Review> => {
+  const newReview = {
+    ...reviewData,
+    timestamp: new Date().toISOString()
+  };
+
+  const docRef = await addDoc(collection(db, REVIEWS_COLLECTION), newReview);
+
+  return {
+    ...newReview,
+    _id: docRef.id
+  } as Review;
+};
+
+export const getCourseReviews = async (courseId: number): Promise<Review[]> => {
+  const q = query(
+    collection(db, REVIEWS_COLLECTION),
+    where('courseId', '==', courseId),
+    orderBy('timestamp', 'desc')
+  );
+  const querySnapshot = await getDocs(q);
+
+  return querySnapshot.docs.map(doc => ({
+    _id: doc.id,
+    ...doc.data()
+  })) as Review[];
+};
+
+export const getCourseAverageRating = async (courseId: number): Promise<{ average: number; total: number }> => {
+  const reviews = await getCourseReviews(courseId);
+  if (reviews.length === 0) return { average: 0, total: 0 };
+
+  const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
+  return {
+    average: sum / reviews.length,
+    total: reviews.length
+  };
+};
+
+// --- GLOBAL FEEDBACK SERVICES ---
+
+export const addGlobalFeedback = async (feedbackData: Omit<GlobalFeedback, '_id' | 'timestamp'>): Promise<GlobalFeedback> => {
+  const newFeedback = {
+    ...feedbackData,
+    timestamp: new Date().toISOString()
+  };
+
+  const docRef = await addDoc(collection(db, FEEDBACK_COLLECTION), newFeedback);
+
+  return {
+    ...newFeedback,
+    _id: docRef.id
+  } as GlobalFeedback;
+};
+
+export const getAllFeedback = async (): Promise<GlobalFeedback[]> => {
+  const q = query(collection(db, FEEDBACK_COLLECTION), orderBy('timestamp', 'desc'));
+  const querySnapshot = await getDocs(q);
+
+  return querySnapshot.docs.map(doc => ({
+    _id: doc.id,
+    ...doc.data()
+  })) as GlobalFeedback[];
+};
+
+export const getAverageSiteRating = async (): Promise<{ average: number; total: number }> => {
+  const feedback = await getAllFeedback();
+  if (feedback.length === 0) return { average: 0, total: 0 };
+
+  const sum = feedback.reduce((acc, fb) => acc + fb.rating, 0);
+  return {
+    average: sum / feedback.length,
+    total: feedback.length
+  };
+};
+
+// --- WISHLIST SERVICES ---
+
+export const addToWishlist = async (userId: string, courseId: number): Promise<void> => {
+  const userRef = doc(db, USERS_COLLECTION, userId);
+  const userDoc = await getDoc(userRef);
+
+  if (userDoc.exists()) {
+    const currentWishlist = userDoc.data().wishlist || [];
+    if (!currentWishlist.includes(courseId)) {
+      await updateDoc(userRef, {
+        wishlist: [...currentWishlist, courseId]
+      });
+    }
+  }
+};
+
+export const removeFromWishlist = async (userId: string, courseId: number): Promise<void> => {
+  const userRef = doc(db, USERS_COLLECTION, userId);
+  const userDoc = await getDoc(userRef);
+
+  if (userDoc.exists()) {
+    const currentWishlist = userDoc.data().wishlist || [];
+    await updateDoc(userRef, {
+      wishlist: currentWishlist.filter((id: number) => id !== courseId)
+    });
+  }
+};
+
+export const getWishlist = async (userId: string): Promise<number[]> => {
+  const userRef = doc(db, USERS_COLLECTION, userId);
+  const userDoc = await getDoc(userRef);
+
+  if (userDoc.exists()) {
+    return userDoc.data().wishlist || [];
+  }
+  return [];
+};
+
+// --- ENROLLED COURSES SERVICES ---
+
+export const enrollInCourse = async (userId: string, courseData: EnrolledCourse): Promise<void> => {
+  const userRef = doc(db, USERS_COLLECTION, userId);
+  const userDoc = await getDoc(userRef);
+
+  if (userDoc.exists()) {
+    const currentEnrolled = userDoc.data().enrolledCourses || [];
+    const alreadyEnrolled = currentEnrolled.some((c: EnrolledCourse) => c.courseId === courseData.courseId);
+
+    if (!alreadyEnrolled) {
+      await updateDoc(userRef, {
+        enrolledCourses: [...currentEnrolled, courseData]
+      });
+    }
+  }
+};
+
+export const getEnrolledCourses = async (userId: string): Promise<EnrolledCourse[]> => {
+  const userRef = doc(db, USERS_COLLECTION, userId);
+  const userDoc = await getDoc(userRef);
+
+  if (userDoc.exists()) {
+    return userDoc.data().enrolledCourses || [];
+  }
+  return [];
+};
+
+export const updateCourseProgress = async (userId: string, courseId: number, progress: number): Promise<void> => {
+  const userRef = doc(db, USERS_COLLECTION, userId);
+  const userDoc = await getDoc(userRef);
+
+  if (userDoc.exists()) {
+    const enrolledCourses = userDoc.data().enrolledCourses || [];
+    const updated = enrolledCourses.map((course: EnrolledCourse) =>
+      course.courseId === courseId
+        ? { ...course, progress, lastAccessed: new Date().toISOString() }
+        : course
+    );
+
+    await updateDoc(userRef, {
+      enrolledCourses: updated
+    });
+  }
 };

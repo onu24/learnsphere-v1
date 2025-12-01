@@ -8,6 +8,36 @@ export enum OrderStatus {
   CONFIRMED = 'Confirmed'
 }
 
+export interface Review {
+  _id: string;
+  courseId: number;
+  userId: string;
+  username: string;
+  userAvatar?: string;
+  rating: number; // 1-5
+  comment: string;
+  timestamp: string;
+}
+
+export interface GlobalFeedback {
+  _id: string;
+  userId: string | null;
+  username: string;
+  email: string;
+  rating: number; // 1-5
+  feedback: string;
+  timestamp: string;
+}
+
+export interface EnrolledCourse {
+  courseId: number;
+  courseName: string;
+  courseImage: string;
+  enrolledAt: string;
+  progress: number; // 0-100
+  lastAccessed?: string;
+}
+
 export interface User {
   _id: string;
   username: string;
@@ -15,6 +45,8 @@ export interface User {
   passwordHash: string; // Simulated hash
   role: UserRole;
   createdAt: string;
+  wishlist?: number[]; // Array of course IDs
+  enrolledCourses?: EnrolledCourse[];
 }
 
 export interface Course {
@@ -24,6 +56,8 @@ export interface Course {
   image: string;
   description: string;
   trailerUrl?: string;
+  averageRating?: number;
+  totalReviews?: number;
 }
 
 export interface CartItem extends Course {

@@ -2,16 +2,26 @@ import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Meteors } from '@/components/ui/meteors';
 import { ArrowLeft, Play, ShoppingCart, CheckCircle, BookOpen, Clock, Users, Award } from 'lucide-react';
-import { useCourses, useCart } from './App';
-import { useState } from 'react';
+import { useCourses, useCart, useAuth } from './App';
+import { useState, useEffect } from 'react';
+import { CourseReviews } from './components/CourseReviews';
+import { ReviewForm } from './components/ReviewForm';
+import { Review } from './types';
+import * as DB from './services/firebase';
 
 const CourseDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { courses } = useCourses();
     const { addToCart } = useCart();
+    const { user } = useAuth();
     const [added, setAdded] = useState(false);
     const [showTrailer, setShowTrailer] = useState(false);
+
+    // Reviews State
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [averageRating, setAverageRating] = useState(0);
+    const [totalReviews, setTotalReviews] = useState(0);
 
     const course = courses.find(c => c.id === parseInt(id || '0'));
 
@@ -32,6 +42,40 @@ const CourseDetails: React.FC = () => {
         addToCart(course);
         setAdded(true);
         setTimeout(() => setAdded(false), 2000);
+    };
+
+    useEffect(() => {
+        if (course) {
+            loadReviews();
+        }
+    }, [course]);
+
+    const loadReviews = async () => {
+        if (!course) return;
+        try {
+            const courseReviews = await DB.getCourseReviews(course.id);
+            const rating = await DB.getCourseAverageRating(course.id);
+            setReviews(courseReviews);
+            setAverageRating(rating.average);
+            setTotalReviews(rating.total);
+        } catch (error) {
+            console.error('Failed to load reviews:', error);
+        }
+    };
+
+    const handleReviewSubmit = async (rating: number, comment: string) => {
+        if (!user || !course) return;
+
+        await DB.addReview({
+            courseId: course.id,
+            userId: user._id,
+            username: user.username,
+            userAvatar: undefined,
+            rating,
+            comment
+        });
+
+        await loadReviews();
     };
 
     return (
@@ -89,8 +133,8 @@ const CourseDetails: React.FC = () => {
                                     onClick={handleAddToCart}
                                     disabled={added}
                                     className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold transition-all ${added
-                                            ? 'bg-green-500 text-white'
-                                            : 'bg-white text-slate-900 hover:bg-brand-500 hover:text-white shadow-lg hover:shadow-xl'
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-white text-slate-900 hover:bg-brand-500 hover:text-white shadow-lg hover:shadow-xl'
                                         }`}
                                 >
                                     {added ? (
@@ -182,6 +226,29 @@ const CourseDetails: React.FC = () => {
                                 </p>
                             </div>
                         </div>
+
+                        {/* Reviews Section */}
+                        <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
+                            <h2 className="text-2xl font-bold text-slate-900 mb-8">Student Reviews</h2>
+
+                            {user && (
+                                <div className="mb-8">
+                                    <ReviewForm
+                                        courseId={course.id}
+                                        userId={user._id}
+                                        username={user.username}
+                                        onSubmit={handleReviewSubmit}
+                                    />
+                                </div>
+                            )}
+
+                            <CourseReviews
+                                courseId={course.id}
+                                reviews={reviews}
+                                averageRating={averageRating}
+                                totalReviews={totalReviews}
+                            />
+                        </div>
                     </div>
 
                     {/* Sidebar */}
@@ -209,8 +276,8 @@ const CourseDetails: React.FC = () => {
                                 onClick={handleAddToCart}
                                 disabled={added}
                                 className={`w-full mt-6 py-4 rounded-xl font-bold transition-all ${added
-                                        ? 'bg-green-500 text-white'
-                                        : 'bg-brand-600 text-white hover:bg-brand-700 shadow-lg'
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-brand-600 text-white hover:bg-brand-700 shadow-lg'
                                     }`}
                             >
                                 {added ? 'Added to Cart ✓' : 'Enroll Now'}

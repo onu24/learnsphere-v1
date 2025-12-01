@@ -9,7 +9,10 @@ import * as EmailService from './services/email';
 import ErrorBoundary from './ErrorBoundary';
 import CourseDetails from './CourseDetails';
 import ReviewsSection from './components/ReviewsSection';
-import { ShoppingCart, User as UserIcon, LogOut, Menu, X, Shield, BookOpen, Trash2, ArrowLeft, CheckCircle, Clock, Plus, Edit2, Save, XCircle, AlertTriangle, Play, Mail, Check, RefreshCw, Search, Upload, FileText, Download } from 'lucide-react';
+import { WishlistProvider, useWishlist } from './contexts/WishlistContext';
+import { Wishlist } from './pages/Wishlist';
+import { MyCourses } from './pages/MyCourses';
+import { ShoppingCart, User as UserIcon, LogOut, Menu, X, Shield, BookOpen, Trash2, ArrowLeft, CheckCircle, Clock, Plus, Edit2, Save, XCircle, AlertTriangle, Play, Mail, Check, RefreshCw, Search, Upload, FileText, Download, Heart } from 'lucide-react';
 
 // --- Contexts ---
 
@@ -139,6 +142,24 @@ const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/" className={isActive('/')}>Courses</Link>
 
+            {/* NEW LINKS */}
+            {user && (
+              <>
+                <Link to="/my-courses" className={isActive('/my-courses')}>
+                  <div className="flex items-center gap-1 text-slate-600 hover:text-brand-600 transition-colors">
+                    <BookOpen size={18} />
+                    <span>My Courses</span>
+                  </div>
+                </Link>
+                <Link to="/wishlist" className={isActive('/wishlist')}>
+                  <div className="flex items-center gap-1 text-slate-600 hover:text-brand-600 transition-colors">
+                    <Heart size={18} />
+                    <span>Wishlist</span>
+                  </div>
+                </Link>
+              </>
+            )}
+
             <Link to="/cart" className="relative group">
               <div className="flex items-center space-x-1 text-slate-600 hover:text-brand-600 transition-colors">
                 <ShoppingCart size={20} />
@@ -208,6 +229,15 @@ const Navbar: React.FC = () => {
           </div>
 
           <Link to="/" onClick={() => setIsOpen(false)} className="block text-slate-600 py-2">Courses</Link>
+
+          {/* NEW MOBILE LINKS */}
+          {user && (
+            <>
+              <Link to="/my-courses" onClick={() => setIsOpen(false)} className="block text-slate-600 py-2">My Courses</Link>
+              <Link to="/wishlist" onClick={() => setIsOpen(false)} className="block text-slate-600 py-2">Wishlist</Link>
+            </>
+          )}
+
           <Link to="/cart" onClick={() => setIsOpen(false)} className="flex justify-between text-slate-600 py-2">
             <span>Cart</span>
             <span className="bg-brand-100 text-brand-700 px-2 rounded-full text-sm">{items.length}</span>
@@ -232,13 +262,13 @@ const Navbar: React.FC = () => {
 };
 
 const Footer = () => (
-  <footer className="bg-slate-900 text-slate-300 py-12 mt-auto">
-    <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-sm">
+  <footer className="bg-slate-900 text-slate-300 py-12 mt-auto relative overflow-hidden">
+    <FooterBackgroundGradient />
+    <div className="relative z-10 max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-sm">
       <div>
-        <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
-          <div className="w-6 h-6 bg-brand-500 rounded flex items-center justify-center text-white text-xs">L</div>
-          LearnSphere
-        </h3>
+        <div className="mb-4 h-20 w-full max-w-[200px]">
+          <TextHoverEffect text="LEARNSPHERE" className="h-full w-full" />
+        </div>
         <p className="opacity-70">Empowering learners worldwide with accessible, high-quality professional resources.</p>
       </div>
       <div>
@@ -255,7 +285,7 @@ const Footer = () => (
         <p className="opacity-70">Mumbai, India</p>
       </div>
     </div>
-    <div className="max-w-7xl mx-auto px-4 mt-8 pt-8 border-t border-slate-800 text-center opacity-50 text-xs">
+    <div className="relative z-10 max-w-7xl mx-auto px-4 mt-8 pt-8 border-t border-slate-800 text-center opacity-50 text-xs">
       &copy; {new Date().getFullYear()} LearnSphere. All rights reserved.
     </div>
   </footer>
@@ -323,6 +353,7 @@ const Hero: React.FC = () => {
 const CourseCard: React.FC<{ course: Course; onPlayTrailer: (url: string) => void }> = ({ course, onPlayTrailer }) => {
   const { addToCart } = useCart();
   const { searchQuery } = useCourses();
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [added, setAdded] = useState(false);
   const navigate = useNavigate();
 
@@ -337,6 +368,14 @@ const CourseCard: React.FC<{ course: Course; onPlayTrailer: (url: string) => voi
     e.stopPropagation(); // Prevent card click
     if (course.trailerUrl) {
       onPlayTrailer(course.trailerUrl);
+    }
+  };
+
+  const handleWishlistToggle = () => {
+    if (isInWishlist(course.id)) {
+      removeFromWishlist(course.id);
+    } else {
+      addToWishlist(course.id);
     }
   };
 
@@ -362,6 +401,27 @@ const CourseCard: React.FC<{ course: Course; onPlayTrailer: (url: string) => voi
           <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full font-bold text-slate-800 shadow-sm">
             ₹{course.price}
           </div>
+
+          {/* Wishlist Heart Button */}
+          <div className="absolute top-4 left-4">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleWishlistToggle();
+              }}
+              className={`p-2 rounded-full transition-all hover:scale-110 bg-white/90 backdrop-blur-sm ${isInWishlist(course.id)
+                ? 'text-red-500'
+                : 'text-slate-400 hover:text-red-500'
+                }`}
+              aria-label={isInWishlist(course.id) ? "Remove from wishlist" : "Add to wishlist"}
+            >
+              <Heart
+                size={20}
+                className={isInWishlist(course.id) ? 'fill-current' : ''}
+              />
+            </button>
+          </div>
+
           {course.trailerUrl && (
             <button
               onClick={handlePlayTrailer}
@@ -1429,6 +1489,10 @@ const Layout: React.FC = () => {
           <Route path="/register" element={<AuthForms type="register" />} />
           <Route path="/payment" element={<Payment />} />
           <Route path="/admin" element={<Admin />} />
+
+          {/* NEW ROUTES */}
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/my-courses" element={<MyCourses />} />
         </Routes>
       </main>
       <Footer />
@@ -1436,14 +1500,20 @@ const Layout: React.FC = () => {
   );
 };
 
+import ScrollToTop from './components/ScrollToTop';
+import { TextHoverEffect, FooterBackgroundGradient } from './components/ui/text-hover-effect';
+
 // --- App Root ---
 
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <HashRouter>
+        <ScrollToTop />
         <AppProvider>
-          <Layout />
+          <WishlistProvider>
+            <Layout />
+          </WishlistProvider>
         </AppProvider>
       </HashRouter>
     </ErrorBoundary>
