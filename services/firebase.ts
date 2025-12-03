@@ -100,12 +100,54 @@ export const loginUser = async (email: string, password: string): Promise<User> 
       };
     }
   } catch (error: any) {
-    throw new Error(error.message);
+    // Use Firebase auth errors directly — no local fallback in production mode.
+    throw new Error(error.message || 'Authentication failed');
   }
 };
 
 export const logoutUser = async () => {
   await signOut(auth);
+};
+
+// Ensure admin accounts exist in Firebase Auth + Firestore
+export const ensureAdminExists = async (): Promise<void> => {
+  const adminAccounts = [
+    { email: 'admin@learnsphere.com', password: 'admin@123', username: 'admin' },
+    { email: 'test@admin.com', password: 'test@1123', username: 'testadmin' }
+  ];
+
+  for (const acct of adminAccounts) {
+    try {
+      // Check Firestore for existing user document
+      const q = query(collection(db, USERS_COLLECTION), where('email', '==', acct.email));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        console.log(`Admin exists in Firestore: ${acct.email}`);
+        continue;
+      }
+
+      // Try to create Auth user
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, acct.email, acct.password);
+        const firebaseUser = cred.user;
+        await updateProfile(firebaseUser, { displayName: acct.username });
+        const createdAt = new Date().toISOString();
+        await setDoc(doc(db, USERS_COLLECTION, firebaseUser.uid), {
+          username: acct.username,
+          email: acct.email,
+          role: UserRole.ADMIN,
+          createdAt
+        });
+        console.log(`Created admin account: ${acct.email}`);
+      } catch (authErr: any) {
+        // If auth error indicates already exists, try to find the auth user by listing users isn't available in client SDK.
+        // As a fallback, log and continue — admins can be manually created in Firebase Console.
+        console.warn(`Could not create auth user for ${acct.email}:`, authErr.message || authErr);
+      }
+    } catch (err: any) {
+      console.error('ensureAdminExists error for', acct.email, err.message || err);
+    }
+  }
 };
 
 // --- TRANSACTION SERVICES ---
@@ -203,6 +245,14 @@ export const updateCoursePrice = async (id: number, newPrice: number): Promise<v
   });
 };
 
+// Generic update helper for admin UI (keeps older API compatibility)
+export const updateCourse = async (id: number, data: Partial<Course>): Promise<void> => {
+  const courseRef = doc(db, COURSES_COLLECTION, id.toString());
+  // Ensure numeric fields are cast appropriately if passed as strings
+  const payload: any = { ...data };
+  if (payload.price && typeof payload.price === 'string') payload.price = parseFloat(payload.price);
+  await updateDoc(courseRef, payload);
+};
 export const resetCourses = async (): Promise<void> => {
   await seedCourses();
 };

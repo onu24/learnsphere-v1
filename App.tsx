@@ -1427,6 +1427,9 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // Persist login (basic implementation)
     const storedUser = localStorage.getItem('learnsphere_active_user');
     if (storedUser) setUser(JSON.parse(storedUser));
+
+    // Ensure admin accounts exist in Firebase (runs silently)
+    DB.ensureAdminExists?.().catch(err => console.error('Failed to ensure admin exists:', err));
   }, []);
 
   const login = (u: User) => {
